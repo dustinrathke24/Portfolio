@@ -135,18 +135,54 @@ SELECT *, (RollingVaccinations/Population)*100 AS PercentPopulationVaccinated
 FROM #PercentPopulationVaccinated
 
 
---Creating view to store data for later visualizations
+--Creating views to store data for later visualizations
 
-CREATE VIEW PercentPopulationVaccinated AS
-SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, SUM(cast(vac.new_vaccinations AS int)) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingVaccinations --(RollingVaccinations/population)*100
-FROM PortfolioProject..covid_vaccinations vac
-JOIN PortfolioProject..covid_deaths dea
-	ON dea.date = vac.date
-	AND dea.location = vac.location
-WHERE dea.continent IS NOT NULL AND dea.population IS NOT NULL
-GROUP BY dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
---ORDER BY 2, 3
+-- 1. 
+CREATE VIEW DeathPercentage AS
+Select SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths, SUM(cast(new_deaths as int))/SUM(New_Cases)*100 as DeathPercentage
+From PortfolioProject..covid_deaths
+--Where location like '%states%'
+where continent is not null 
+--Group By date
+--order by 1,2
 
 
-SELECT *
-FROM PercentPopulationVaccinated
+--2
+CREATE VIEW WorldDeath AS
+Select SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths, SUM(cast(new_deaths as int))/SUM(New_Cases)*100 as DeathPercentage
+From PortfolioProject..covid_deaths
+--Where location like '%states%'
+where location = 'World'
+--Group By date
+--order by 1,2
+
+
+-- 3. 
+-- We take these out as they are not inluded in the above queries and want to stay consistent
+-- European Union is part of Europe
+CREATE VIEW ContinentDeath AS
+Select location, SUM(cast(new_deaths as int)) as TotalDeathCount
+From PortfolioProject..covid_deaths
+--Where location like '%states%'
+Where continent is null 
+and location not in ('World', 'European Union', 'International')
+Group by location
+--order by TotalDeathCount desc
+
+
+-- 4.
+CREATE VIEW Map AS
+Select Location, Population, MAX(total_cases) as HighestInfectionCount,  Max((total_cases/population))*100 as PercentPopulationInfected
+From PortfolioProject..covid_deaths
+--Where location like '%states%'
+Group by Location, Population
+--order by PercentPopulationInfected desc
+
+
+-- 5.
+CREATE VIEW Timeseries AS
+Select Location, Population, date, MAX(total_cases) as HighestInfectionCount, Max((total_cases/population))*100 as PercentPopulationInfected
+From PortfolioProject..covid_deaths
+--Where location like '%states%'
+Group by Location, Population, date
+--order by PercentPopulationInfected desc
